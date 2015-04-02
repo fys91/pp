@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title></title>
+    <style>
+        *{
+            /*font-weight: bold;*/
+        }
+        p{line-height: 20px}
+    </style>
+</head>
+<body>
+    <textarea id="text" onblur="abc()" style="width: 600px; height: 300px; font-size: 12px; font-weight: 100"></textarea><br/>
+    <br/>
+    字体大小：<input id="fontSize" value="18" onblur="abc()">
+    <div id="code"></div>
+    <p style="font-weight: bold;font-size: 20px ">tex</p>
+    <div id="tex" style="border: 1px solid black;color: green;font-size: 18px; padding: 10px"></div>
+    <div id="code2" style="width: 600px; line-height: 30px; font-size: 20px"></div>
+</body>
+<script>
+
+    function abc(){
+        var text= document.getElementById('text').value+' ' || '';
+        document.getElementById('code2').innerHTML=text;
+        var box=[],glue=[],penalty=[],lineWidth,fontSize,xLine=[],xBr=[];
+        var DBox = {
+            lineWidth:600,
+            text:text
+        }
+
+
+        var Box = function(width){
+            box.push(width);
+        }
+
+
+        var Penalty = function(pen){
+            penalty.push(pen);
+        }
+
+       var Duan = [];
+       var xDuan = [];
+//        Duan[] = {
+//            box:box,
+//            text:text
+//        }
+
+
+        var Word = function(){
+            for(var i= 0,word = '',eng='',Eng= 0,hh=0; i<text.length; i++){
+                if(text.charAt(i)=="\n" && hh==0){
+                    word += '<span>abc#</span>';
+                    hh = 1;
+                    continue;
+                }else{
+                    hh = 0;
+                }
+
+                if((text.charAt(i).charCodeAt()>=48 && text.charAt(i).charCodeAt()<=57) || (text.charAt(i).charCodeAt()>=97 && text.charAt(i).charCodeAt()<=122) || (text.charAt(i).charCodeAt()>=65 && text.charAt(i).charCodeAt()<=90) || Eng==1 || text.charAt(i)=="’"){
+
+                    if(/\s/.test(text.charAt(i)) || (text.charAt(i).charCodeAt()>=250 && text.charAt(i)!='’')){
+                        if((text.charAt(i-1).charCodeAt()>=48 && text.charAt(i-1).charCodeAt()<=57)){
+                            word += '<span>'+eng+'</span>';
+                        }else{
+                            var p = word.substr(-8,1).charCodeAt();
+                            if((p>=97 && p<=122) ||(p>=65 && p<=90) || /\s/.test(word.substr(-8,1))){
+                                word += '<span> '+eng+'</span>';
+                            }else {
+                                word += '<span>'+eng+'</span>';
+                            }
+                        }
+                        eng ='';
+                        Eng=0;
+                        word += '<span>'+text.charAt(i)+'</span>';
+                    }else{
+                        eng += text.charAt(i);
+                        Eng=1
+                    }
+
+                }else{
+                    var kword = text.charAt(i);
+
+                    word += '<span>'+kword+'</span>';
+                }
+            }
+
+            var code = document.getElementById('code');
+            code.style.fontSize = document.getElementById('fontSize').value+'px';
+            word = word.replace(/<span>\s<\/span>/g,'');
+            code.innerHTML = word;
+            var span =code.getElementsByTagName('span');
+
+            var fuhao = new Array('，','。','”','、','？','：','“','！','；','（','）','《','》','「','」');
+
+
+            for(var i=0;i<span.length;i++){
+                var xWord = span[i].innerHTML;
+                if(xWord == 'abc#'){
+                    var width = 0;
+                    Box(width);
+                    continue;
+                }
+
+                if(xWord.charCodeAt()>255){
+                    if(fuhao.in_array(span[i].innerHTML)) {
+                        var width = parseInt(document.getElementById('fontSize').value);
+                    }else{
+                        var width = parseInt(document.getElementById('fontSize').value);
+                    }
+                }else{
+                    var width = span[i].offsetWidth-1;
+                }
+
+                Box(width)
+            }
+
+
+            var breakDuan = function(){
+                var content = code.innerHTML;
+                xDuan = content.split('<span>abc#</span>')
+                var c=0;
+
+                for(var i=0; i<xDuan.length; i++){
+                    var k = xDuan[i];
+                    var b = k.match(/<span>/g)||[];
+                    var boxWidth = [];
+                    var textContent = [];
+
+                    for(var k=0; k< b.length;k++){
+                        boxWidth.push(box[c]);
+                        textContent.push(span[c].innerHTML);
+
+                        c++;
+                    }
+
+                    Duan[i]={
+                        boxWidth:boxWidth,
+                        textContent:textContent
+                    }
+                }
+
+            }
+            breakDuan();
+
+
+            function evaluateLine(boxes){
+                var box, i, isFlexibleEnd, optimalWidth, result,  _i, _len,kb=600;
+                result = {
+                    'continue': true,
+                    'consider': true,
+                    'elasticRate': 0
+                };
+                optimalWidth = 0;
+
+                for (i = _i = 0, _len = boxes.length; _i < _len; i = ++_i) {
+
+                    box = boxes[i];
+
+                    optimalWidth += box;
+                }
+                if (optimalWidth < kb) {
+
+                        result.elasticRate = (kb - optimalWidth);
+
+                } else {
+                    result.elasticRate = (kb - optimalWidth);
+                    if (result.elasticRate < 0) {
+                        result["continue"] = false;
+                        result.consider = false;
+                        return result;
+                    }
+                }
+                result.demerit = Math.pow(result.elasticRate,2);
+
+                if (result.demerit >100000) {
+                    result.consider = false;
+                }
+                return result;
+            }
+
+           var costMap = [
+                [
+                    {
+                        'demerit': 0,
+                        'lines': []
+                    }
+                ]
+            ];
+
+            breakLines = function(boxes) {
+                var best, competeCost, cost, currentCost, endIndex, lineResult, numLines, startIndex, _i, _j, _k, _l, _len, _len1, _name, _ref, _ref1, _ref2, _ref3, _ref4;
+
+                for (startIndex = _i = 0, _ref = boxes.length - 1; 0 <= _ref ? _i <= _ref : _i >= _ref; startIndex = 0 <= _ref ? ++_i : --_i) {
+                    if (!(costMap[startIndex] != null)) {
+                        continue;
+                    }
+                    _ref1 = costMap[startIndex];
+                    for (numLines = _j = 0, _len = _ref1.length; _j < _len; numLines = ++_j) {
+                        currentCost = _ref1[numLines];
+                        if (currentCost != null) {
+                            for (endIndex = _k = startIndex, _ref2 = boxes.length - 1; startIndex <= _ref2 ? _k <= _ref2 : _k >= _ref2; endIndex = startIndex <= _ref2 ? ++_k : --_k) {
+                                lineResult = evaluateLine(boxes.slice(startIndex, endIndex + 1 || 9e9));
+                                if (lineResult.consider) {
+                                    competeCost = ((_ref3 = costMap[_name = endIndex + 1]) != null ? _ref3 : costMap[_name] = [])[numLines + 1];
+                                    if (!(competeCost != null) || currentCost.demerit + lineResult.demerit < competeCost.demerit) {
+                                        costMap[endIndex + 1][numLines + 1] = {
+                                            'demerit': currentCost.demerit + lineResult.demerit,
+                                            'lines': currentCost.lines.concat({
+                                                'start': startIndex,
+                                                'end': endIndex,
+                                                'elasticRate': lineResult.elasticRate,
+                                                'demerit': lineResult.demerit
+//                                                'badness': lineResult.badness,
+//                                                'penalty': lineResult.penalty
+                                            })
+                                        };
+                                    }
+                                }
+                                if (!lineResult["continue"]) {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+
+        breakLines(Duan[0].boxWidth);
+
+
+        var jd = function(f){
+            Array.prototype.min = function(){   //最小值
+                return Math.min.apply({},this)
+            }
+            var min = [];
+            var c=0;
+
+            var s= 0,e =0;
+            for(var i=0; i<costMap.length;i++){
+                if(costMap[i]){
+                    for(var k=0; k<costMap[i].length;k++){
+                       if(costMap[i][k]){
+                           for(var b=0; b<costMap[i][k].lines.length;b++){
+                               if(costMap[i][k].lines.length==(f-1)){
+                                  min.push(costMap[i][k].demerit)
+                               }
+                           }
+                       }
+                    }
+
+                }
+
+            }
+            var min = min.min();
+            for(var i=0; i<costMap.length;i++){
+                if(costMap[i]){
+                    for(var k=0; k<costMap[i].length;k++){
+                        if(costMap[i][k]){
+                            for(var b=0; b<costMap[i][k].lines.length;b++){
+                                if(costMap[i][k].lines.length==(f-1)){
+                                    if(costMap[i][k].demerit==min){
+                                        s=i;
+                                        e=k;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            var result = {
+                x:s,
+                y:e
+            }
+
+            return result;
+
+        }
+
+
+
+        var cd = function(){
+            var o = document.getElementById('tex');
+            o.innerHTML = '';
+            var min = 0;
+            var c = 0;
+            var f = 0;
+            var y = (Duan[0].boxWidth.length);
+
+
+            for(var d=0; d<costMap[y].length;d++){
+                if(costMap[y][d]){
+                    f = costMap[y][d].lines.length;
+                    break;
+                }
+
+            }
+
+            var result = jd(f);
+
+
+            for(var i=0; i<f-1; i++){
+                word='';
+
+                var d = costMap[result.x][result.y].lines[i].elasticRate;
+                var num = costMap[result.x][result.y].lines[i].end-costMap[result.x][result.y].lines[i].start+1;
+                var mar = d/(num-1);
+
+
+                for(var k=0; k<costMap[result.x][result.y].lines[i].end-costMap[result.x][result.y].lines[i].start+1;k++ ){
+                   if(k==0){
+                       word += '<span>'+Duan[0].textContent[c]+'</span>';
+                   }else{
+                        word += '<span style="margin-left: '+mar+'px">'+Duan[0].textContent[c]+'</span>';
+                    }
+
+                   d = d/num;
+                   c++
+                }
+                var p = document.createElement('p');
+                p.innerHTML = word;
+                o.appendChild(p);
+            }
+
+            word = '';
+            for(var i = parseInt(result.x); i<y; i++){
+                word += '<span>'+Duan[0].textContent[i]+'</span>';
+            }
+            var p = document.createElement('p');
+            p.innerHTML = word;
+            o.appendChild(p);
+        }
+
+            cd();
+
+
+            var costMap = [
+                [
+                    {
+                        'demerit': 0,
+                        'lines': []
+                    }
+                ]
+            ];
+
+
+            for(var i= 0,l=-1,width=2*document.getElementById('fontSize').value,br=0;i<span.length;i++){
+
+                width += box[i];
+
+
+
+
+                if(span[i].innerHTML == 'abc#'){
+
+
+
+                    Penalty(DBox.lineWidth-(width-box[i]));
+                    br++;
+                    width = 2*document.getElementById('fontSize').value;
+                    xBr.push(br);
+                }
+
+                if(width>=DBox.lineWidth){
+                    var fuhao = new Array('，','。','”','!','》','、','？','；',')','）');
+                    var qianfuhao  = new Array('《','（','[','{','<','(','“','「');
+                    l++;
+                    br++;
+                    if(fuhao.in_array(span[i].innerHTML)){
+                        Penalty(DBox.lineWidth-(width-box[i]));
+                        span[i].innerHTML+='abc#';
+                        width=0;
+                        xLine.push(l);
+                    }else{
+                        if(qianfuhao.in_array(span[i-1].innerHTML)){
+                            span[i-2].innerHTML+='abc#';
+                            Penalty(DBox.lineWidth-(width-box[i]-box[i-1]));
+                            width = box[i-1]+box[i];
+                        }else{
+                            span[i-1].innerHTML+='abc#';
+                            Penalty(DBox.lineWidth-(width-box[i]));
+                            width=box[i];
+                        }
+                    }
+
+                }
+
+            }
+
+            (function(){
+
+                var content = code.innerHTML;
+                    code.innerHTML ='';
+                content = content.split('abc#');
+
+                for(i in content){
+                    var p = document.createElement('p');
+                    p.innerHTML = content[i];
+                    code.appendChild(p);
+                }
+            })();
+
+            (function(){
+                var span,b=0;
+                var fuhao = new Array('，','。','”','！','、','？','；','：','）','》','」');
+                var qianfuhao = ['“','（','《','「'];
+                var p = code.getElementsByTagName('p');
+                for(var i= 0,len= p.length; i<len; i++){
+                    span = p[i].getElementsByTagName('span');
+                    var margin = penalty[i]/(span.length-1);
+
+
+                    if(xBr.in_array(i+1)){
+                        margin = 0;
+                        penalty[i]= 0;
+                    }
+
+
+                    if(k!=0){
+                        for(var k=0; k<span.length; k++){
+                            if((i==0 && k==0) || (xBr.in_array(i) && k==0)){
+                                span[k].style.marginLeft = 2*document.getElementById('fontSize').value+'px';
+                                if(qianfuhao.in_array(span[k].innerHTML)){
+                                    span[k].style.marginLeft = 2*document.getElementById('fontSize').value-document.getElementById('fontSize').value/2+'px';
+                                }
+                                continue;
+                            }
+
+                            if(k==0){
+                                b=0;
+                            }
+
+//                            if(k!=0){
+                                if(qianfuhao.in_array(span[k].innerHTML)){
+                                    span[k].style.marginLeft = (margin - parseInt(document.getElementById('fontSize').value)/2) + 'px';
+                                    if(b==1){
+                                        span[k].style.marginLeft = (margin - parseInt(document.getElementById('fontSize').value)) + 'px';
+                                        b=0;
+                                        continue;
+                                    }else{
+                                        continue;
+                                    }
+                                }
+
+                                if(b==1){
+                                    span[k].style.marginLeft = (margin - parseInt(document.getElementById('fontSize').value)/2) + 'px';
+                                    if(fuhao.in_array(span[k].innerHTML)){
+                                        b=1;
+                                    }else{
+                                        b=0;
+                                    }
+                                    continue;
+                                }
+
+                                if(fuhao.in_array(span[k].innerHTML)){
+                                    span[k].style.marginLeft = margin+'px';
+                                    b=1;
+                                }else{
+                                    span[k].style.marginLeft = margin+'px';
+                                }
+//                            }
+                        }
+                    }
+                }
+            })();
+
+            new function(){
+                var p = document.createElement('p');
+                var result = 0;
+                for(var i=0; i<penalty.length; i++){
+                    result += parseInt(penalty[i]);
+                    p.innerHTML += penalty[i]+'|';
+                }
+                p.innerHTML += ' | 总和：'+result;
+                code.appendChild(p);
+            }
+
+        }
+
+        Word();
+    }
+
+
+    Array.prototype.in_array = function(e){
+        for(var i=0;i<this.length;i++)
+        {
+            if(this[i] == e) return true;
+        }
+        return false;
+    }
+
+</script>
+</html>
